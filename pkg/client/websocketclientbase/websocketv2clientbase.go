@@ -2,15 +2,19 @@ package websocketclientbase
 
 import (
 	"fmt"
+	"net/http"
+	u "net/url"
+	"sync"
+	"time"
+
 	"github.com/gorilla/websocket"
+	"github.com/huobirdcenter/huobi_golang/config"
 	"github.com/huobirdcenter/huobi_golang/internal/gzip"
 	"github.com/huobirdcenter/huobi_golang/internal/model"
 	"github.com/huobirdcenter/huobi_golang/internal/requestbuilder"
 	"github.com/huobirdcenter/huobi_golang/logging/applogger"
 	"github.com/huobirdcenter/huobi_golang/pkg/model/auth"
 	"github.com/huobirdcenter/huobi_golang/pkg/model/base"
-	"sync"
-	"time"
 )
 
 const (
@@ -100,7 +104,20 @@ func (p *WebSocketV2ClientBase) connectWebSocket() {
 	var err error
 	url := fmt.Sprintf("wss://%s%s", p.host, websocketV2Path)
 	applogger.Debug("WebSocket connecting...")
-	p.conn, _, err = websocket.DefaultDialer.Dial(url, nil)
+
+	var dialer websocket.Dialer
+	var proxyUrl = config.WSSProxyURL
+	if proxyUrl != "" {
+		proxy, _ := u.Parse(proxyUrl)
+		dialer = websocket.Dialer{
+			Proxy: http.ProxyURL(proxy),
+		}
+	} else {
+		dialer = websocket.Dialer{}
+	}
+
+	p.conn, _, err = dialer.Dial(url, nil)
+
 	if err != nil {
 		applogger.Error("WebSocket connected error: %s", err)
 		return

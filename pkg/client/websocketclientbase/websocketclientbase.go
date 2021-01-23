@@ -2,20 +2,24 @@ package websocketclientbase
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/huobirdcenter/huobi_golang/internal/gzip"
-	"github.com/huobirdcenter/huobi_golang/internal/model"
-	"github.com/huobirdcenter/huobi_golang/logging/applogger"
+	"net/http"
+	u "net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/huobirdcenter/huobi_golang/config"
+	"github.com/huobirdcenter/huobi_golang/internal/gzip"
+	"github.com/huobirdcenter/huobi_golang/internal/model"
+	"github.com/huobirdcenter/huobi_golang/logging/applogger"
 )
 
 const (
 	TimerIntervalSecond = 5
 	ReconnectWaitSecond = 60
 
-	wsPath = "/ws"
+	wsPath   = "/ws"
 	feedPath = "/feed"
 )
 
@@ -105,7 +109,20 @@ func (p *WebSocketClientBase) connectWebSocket() {
 	var err error
 	url := fmt.Sprintf("wss://%s%s", p.host, p.path)
 	applogger.Debug("WebSocket connecting...")
-	p.conn, _, err = websocket.DefaultDialer.Dial(url, nil)
+	// p.conn, _, err = websocket.DefaultDialer.Dial(url, nil)
+	// by wing
+	var dialer websocket.Dialer
+	var proxyUrl = config.WSSProxyURL
+	if proxyUrl != "" {
+		proxy, _ := u.Parse(proxyUrl)
+		dialer = websocket.Dialer{
+			Proxy: http.ProxyURL(proxy),
+		}
+	} else {
+		dialer = websocket.Dialer{}
+	}
+	p.conn, _, err = dialer.Dial(url, nil)
+
 	if err != nil {
 		applogger.Error("WebSocket connected error: %s", err)
 		return
